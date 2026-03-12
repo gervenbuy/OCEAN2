@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCEAN 五大人格分析系統 | 電商神助手</title>
+    <!-- 引入 Tailwind CSS 框架以快速構建響應式與質感介面 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Chart.js 用於繪製結果雷達圖 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 引入 Google Fonts (Noto Sans TC) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #121212; /* 極黑無印風背景 */
+            color: #f3f4f6;
+        }
+        .card-bg {
+            background-color: #1e1e1e;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        .option-btn {
+            transition: all 0.2s ease;
+        }
+        .option-btn:hover {
+            background-color: #374151;
+            transform: translateY(-2px);
+        }
+        .option-btn.selected {
+            background-color: #73937E; /* 莫蘭迪綠 */
+            color: white;
+            border-color: #73937E;
+        }
+        /* 自定義進度條動畫 */
+        .progress-bar {
+            transition: width 0.4s ease;
+        }
+        /* 隱藏捲軸但可滾動 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #121212;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- 系統主容器 -->
+    <div class="card-bg w-full max-w-2xl rounded-2xl overflow-hidden relative border border-gray-800">
+        
+        <!-- 頂部品牌標識 -->
+        <div class="w-full bg-[#181818] py-3 px-6 border-b border-gray-800 flex justify-between items-center">
+            <span class="text-sm text-gray-400 tracking-widest uppercase">OCEAN Personality Test</span>
+            <span class="text-sm font-bold text-[#73937E] tracking-widest">電商神助手 呈獻</span>
+        </div>
+
+        <!-- 1. 首頁 (Intro Screen) -->
+        <div id="intro-screen" class="p-8 md:p-12 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold mb-4 tracking-wider">五大人格深度解析</h1>
+            <p class="text-gray-400 mb-8 leading-relaxed text-sm md:text-base text-left">
+                歡迎進入由「電商神助手」提供的專業 OCEAN 性格分析。本測驗包含 20 題精選題目，將從「經驗開放性、盡責性、外向性、親和性、神經質」五個維度，為您繪製專屬的人格雷達圖。<br><br>
+                請依據您最直覺、真實的感受作答。測驗約需 3 分鐘。
+            </p>
+            <button onclick="startTest()" class="bg-[#73937E] hover:bg-[#5f7a68] text-white font-medium py-3 px-10 rounded-full transition-colors duration-300 shadow-lg tracking-wider">
+                開始測驗
+            </button>
+        </div>
+
+        <!-- 2. 測驗頁面 (Quiz Screen) -->
+        <div id="quiz-screen" class="hidden flex flex-col h-[500px]">
+            <!-- 進度條 -->
+            <div class="w-full bg-gray-800 h-1.5">
+                <div id="progress" class="progress-bar bg-[#73937E] h-1.5 w-0"></div>
+            </div>
+            
+            <div class="p-8 flex-grow flex flex-col justify-center">
+                <div class="mb-2 text-sm text-gray-500 font-medium tracking-wider" id="question-counter">Question 1 / 20</div>
+                <h2 id="question-text" class="text-xl md:text-2xl font-medium mb-8 leading-snug min-h-[4rem]">
+                    載入題目中...
+                </h2>
+
+                <!-- 作答選項 -->
+                <div class="flex flex-col space-y-3" id="options-container">
+                    <button class="option-btn border border-gray-700 rounded-xl p-4 text-left md:text-center w-full" onclick="selectOption(5)">5 - 非常認同</button>
+                    <button class="option-btn border border-gray-700 rounded-xl p-4 text-left md:text-center w-full" onclick="selectOption(4)">4 - 滿認同的</button>
+                    <button class="option-btn border border-gray-700 rounded-xl p-4 text-left md:text-center w-full" onclick="selectOption(3)">3 - 普通 / 不確定</button>
+                    <button class="option-btn border border-gray-700 rounded-xl p-4 text-left md:text-center w-full" onclick="selectOption(2)">2 - 不太認同</button>
+                    <button class="option-btn border border-gray-700 rounded-xl p-4 text-left md:text-center w-full" onclick="selectOption(1)">1 - 非常不認同</button>
+                </div>
+            </div>
+
+            <!-- 底部導航按鈕 -->
+            <div class="p-6 border-t border-gray-800 flex justify-between items-center bg-[#181818]">
+                <button id="prev-btn" onclick="prevQuestion()" class="text-gray-400 hover:text-white transition disabled:opacity-30 disabled:cursor-not-allowed px-4 py-2">
+                    &larr; 上一題
+                </button>
+                <button id="next-btn" onclick="nextQuestion()" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-full transition disabled:opacity-30 disabled:cursor-not-allowed">
+                    下一題 &rarr;
+                </button>
+                <button id="submit-btn" onclick="calculateResults()" class="hidden bg-[#73937E] hover:bg-[#5f7a68] text-white px-6 py-2 rounded-full transition shadow-lg">
+                    看報告
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. 結果頁面 (Result Screen) -->
+        <div id="result-screen" class="hidden p-8 w-full">
+            <h2 class="text-2xl font-bold mb-2 text-center tracking-wider">您的專屬人格分析</h2>
+            <p class="text-center text-gray-400 text-sm mb-6">電商神助手 系統運算完成</p>
+            
+            <!-- 雷達圖區塊 -->
+            <div class="relative w-full max-w-sm mx-auto mb-8 aspect-square">
+                <canvas id="radarChart"></canvas>
+            </div>
+
+            <!-- 分數條列區塊 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8" id="score-details">
+                <!-- 動態生成分數條 -->
+            </div>
+
+            <!-- 文字解析區塊 -->
+            <div class="bg-[#181818] rounded-xl p-6 border border-gray-800 mb-6">
+                <h3 class="text-[#73937E] font-bold mb-3 tracking-wider">💡 綜合解析與建議</h3>
+                <p id="analysis-text" class="text-gray-300 text-sm leading-relaxed whitespace-pre-line"></p>
+            </div>
+
+            <div class="text-center">
+                <button onclick="resetTest()" class="text-gray-400 hover:text-white underline text-sm transition">
+                    重新測驗
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 核心題庫資料 (包含維度標記與正反向計分)
+        const questions = [
+            // O - 經驗開放性
+            { id: 1, text: "我喜歡探索新事物，對未知的領域充滿好奇。", trait: "O", reverse: false },
+            { id: 2, text: "我常有豐富的想像力，喜歡發想創新的點子。", trait: "O", reverse: false },
+            { id: 3, text: "我更喜歡熟悉且例行性的事物，不太喜歡生活中有太大的改變。", trait: "O", reverse: true },
+            { id: 4, text: "我對抽象的哲學理論或純藝術的討論不太感興趣。", trait: "O", reverse: true },
+            // C - 盡責性
+            { id: 5, text: "我做事非常有條理，喜歡事先制定詳細的計畫並確實執行。", trait: "C", reverse: false },
+            { id: 6, text: "我具有高度的自律能力，能堅持把困難的任務完成才休息。", trait: "C", reverse: false },
+            { id: 7, text: "我有時候做事會比較粗心，容易忽略重要的細節。", trait: "C", reverse: true },
+            { id: 8, text: "我經常會把該做的事情拖延到最後一刻才開始動手。", trait: "C", reverse: true },
+            // E - 外向性
+            { id: 9, text: "在社交場合中，我通常是那個主動開口與人交談、帶動氣氛的人。", trait: "E", reverse: false },
+            { id: 10, text: "我覺得參加大型聚會或與許多人交流的活動，能讓我充滿能量。", trait: "E", reverse: false },
+            { id: 11, text: "我比較喜歡獨處，覺得跟很多人社交是一件很消耗精力的事情。", trait: "E", reverse: true },
+            { id: 12, text: "在人群中，我傾向保持沉默，不愛出風頭或成為焦點。", trait: "E", reverse: true },
+            // A - 親和性
+            { id: 13, text: "我很容易體察到他人的感受，並且樂於在別人需要時提供幫助。", trait: "A", reverse: false },
+            { id: 14, text: "我相信大多數人的本性都是善良的，並且值得信任。", trait: "A", reverse: false },
+            { id: 15, text: "為了堅持自己的立場或達成目的，我不介意與他人發生爭執。", trait: "A", reverse: true },
+            { id: 16, text: "有時候，我會對別人的困難或情緒感到漠不關心。", trait: "A", reverse: true },
+            // N - 神經質
+            { id: 17, text: "我很容易因為生活或工作中的小挫折而感到焦慮與充滿壓力。", trait: "N", reverse: false },
+            { id: 18, text: "我的情緒起伏比較大，有時會突然感到一陣低落或煩躁。", trait: "N", reverse: false },
+            { id: 19, text: "在面對突發的危機或高壓環境時，我通常能保持冷靜與放鬆。", trait: "N", reverse: true },
+            { id: 20, text: "我很少感到憂鬱，對未來通常抱持著平靜的心態。", trait: "N", reverse: true }
+        ];
+
+        // 系統狀態
+        let currentQuestionIndex = 0;
+        let answers = new Array(20).fill(null);
+        let radarChartInstance = null;
+
+        // DOM 元素參考
+        const introScreen = document.getElementById('intro-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const questionText = document.getElementById('question-text');
+        const questionCounter = document.getElementById('question-counter');
+        const progressBar = document.getElementById('progress');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        const optionBtns = document.querySelectorAll('.option-btn');
+
+        // 維度名稱對照
+        const traitNames = {
+            "O": "經驗開放性 (O)",
+            "C": "盡責性 (C)",
+            "E": "外向性 (E)",
+            "A": "親和性 (A)",
+            "N": "神經質 (N)"
+        };
+
+        // 維度解析庫
+        const analysisTexts = {
+            "O": { high: "您具備極高的好奇心與想像力，適合從事需要創新思考與打破常規的工作（如創意企劃、設計）。", low: "您偏好務實與熟悉的事物，做事腳踏實地，是團隊中穩定可靠的執行者。" },
+            "C": { high: "您展現出極強的自律與目標導向，做事井然有序，非常適合需要高度精準與管理的專案。", low: "您具有較高的彈性，不喜歡被死板的計畫綁住，在需要臨場反應的環境中表現更佳。" },
+            "E": { high: "您充滿社交活力，善於溝通與帶動氣氛，在業務拓展、公關或團隊領導上具有天然優勢。", low: "您偏好安靜的環境，擁有強大的獨立思考與專注力，適合需要深度鑽研的專業領域。" },
+            "A": { high: "您富有同理心且樂於助人，是團隊中不可或缺的潤滑劑，擅長建立深厚的客戶與人際關係。", low: "您行事果斷、理性客觀，在需要進行艱難決策或談判時，不會輕易被情感左右。" },
+            "N": { high: "您對環境與情緒的變化非常敏銳，能提早察覺潛在風險。建議適度放鬆，找到紓壓管道。", low: "您的情緒非常穩定，抗壓性極佳。在面對危機與高壓環境時，能冷靜地帶領團隊突破難關。" }
+        };
+
+        // 啟動測驗
+        function startTest() {
+            introScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            renderQuestion();
+        }
+
+        // 渲染題目
+        function renderQuestion() {
+            const q = questions[currentQuestionIndex];
+            questionText.textContent = q.text;
+            questionCounter.textContent = `Question ${currentQuestionIndex + 1} / 20`;
+            
+            // 更新進度條
+            const progressPercent = ((currentQuestionIndex + 1) / questions.length) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+
+            // 更新按鈕狀態
+            prevBtn.disabled = currentQuestionIndex === 0;
+            
+            // 處理選項視覺狀態
+            optionBtns.forEach((btn, index) => {
+                btn.classList.remove('selected');
+                // 按鈕對應的分數：5, 4, 3, 2, 1 (根據 HTML 順序)
+                const scoreValue = 5 - index; 
+                if (answers[currentQuestionIndex] === scoreValue) {
+                    btn.classList.add('selected');
+                }
+            });
+
+            // 控制下一步/提交按鈕顯示
+            if (currentQuestionIndex === questions.length - 1) {
+                nextBtn.classList.add('hidden');
+                submitBtn.classList.remove('hidden');
+                submitBtn.disabled = answers[currentQuestionIndex] === null;
+            } else {
+                nextBtn.classList.remove('hidden');
+                submitBtn.classList.add('hidden');
+                nextBtn.disabled = answers[currentQuestionIndex] === null;
+            }
+        }
+
+        // 選擇答案
+        function selectOption(score) {
+            answers[currentQuestionIndex] = score;
+            renderQuestion(); // 更新視覺
+            
+            // 自動跳下一題 (延遲一點點讓使用者看到按鈕變色)
+            if (currentQuestionIndex < questions.length - 1) {
+                setTimeout(() => {
+                    nextQuestion();
+                }, 300);
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < questions.length - 1 && answers[currentQuestionIndex] !== null) {
+                currentQuestionIndex++;
+                renderQuestion();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                renderQuestion();
+            }
+        }
+
+        // 計算結果
+        function calculateResults() {
+            // 確保所有題目都已作答 (防呆)
+            if (answers.includes(null)) {
+                alert("請完成所有題目後再查看結果喔！");
+                return;
+            }
+
+            // 初始化分數物件
+            const scores = { "O": 0, "C": 0, "E": 0, "A": 0, "N": 0 };
+
+            // 計分邏輯
+            questions.forEach((q, index) => {
+                let score = answers[index];
+                if (q.reverse) {
+                    score = 6 - score; // 反向計分轉換 (5->1, 4->2, 3->3, 2->4, 1->5)
+                }
+                scores[q.trait] += score;
+            });
+
+            showResults(scores);
+        }
+
+        // 顯示結果與渲染圖表
+        function showResults(scores) {
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+
+            const labels = Object.values(traitNames);
+            const dataPoints = Object.values(scores); // [O, C, E, A, N]
+            const rawKeys = Object.keys(scores);
+
+            // 1. 繪製雷達圖 (Chart.js)
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            
+            // 若重新測驗需摧毀舊圖表
+            if(radarChartInstance) {
+                radarChartInstance.destroy();
+            }
+
+            // Chart.js 全局文字顏色設定
+            Chart.defaults.color = '#9ca3af';
+            Chart.defaults.font.family = "'Noto Sans TC', sans-serif";
+
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '您的性格特質分數',
+                        data: dataPoints,
+                        backgroundColor: 'rgba(115, 147, 126, 0.4)', // 莫蘭迪綠半透明
+                        borderColor: '#73937E', // 莫蘭迪綠
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#73937E',
+                        pointHoverBackgroundColor: '#73937E',
+                        pointHoverBorderColor: '#fff',
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            pointLabels: {
+                                font: { size: 12, weight: 'bold' },
+                                color: '#e5e7eb'
+                            },
+                            ticks: {
+                                display: false, // 不顯示數值刻度
+                                min: 4, // 最小分數 (4題 * 1分)
+                                max: 20 // 最大分數 (4題 * 5分)
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `得分: ${context.raw} / 20`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. 顯示文字分數條
+            const scoreDetailsContainer = document.getElementById('score-details');
+            scoreDetailsContainer.innerHTML = ''; // 清空
+            rawKeys.forEach(key => {
+                const score = scores[key];
+                const percentage = ((score - 4) / 16) * 100; // 轉換為百分比供進度條使用
+                const html = `
+                    <div class="bg-[#181818] p-3 rounded-lg border border-gray-800">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="font-medium">${traitNames[key]}</span>
+                            <span class="text-[#73937E] font-bold">${score} 分</span>
+                        </div>
+                        <div class="w-full bg-gray-700 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-[#73937E] h-1.5 rounded-full" style="width: ${percentage}%"></div>
+                        </div>
+                    </div>
+                `;
+                scoreDetailsContainer.innerHTML += html;
+            });
+
+            // 3. 生成客製化分析文案
+            // 找出最高分與最低分的維度
+            let highestTrait = rawKeys[0];
+            let lowestTrait = rawKeys[0];
+            
+            rawKeys.forEach(key => {
+                if(scores[key] > scores[highestTrait]) highestTrait = key;
+                if(scores[key] < scores[lowestTrait]) lowestTrait = key;
+            });
+
+            // 組合文案
+            const analysisEl = document.getElementById('analysis-text');
+            let analysisContent = `【顯著特質】\n${analysisTexts[highestTrait].high}\n\n`;
+            
+            // 避免最高分和最低分文案衝突，若最高最低為同一項(極端情況)，則略過第二段
+            if (highestTrait !== lowestTrait) {
+                analysisContent += `【潛在特質】\n${analysisTexts[lowestTrait].low}\n\n`;
+            }
+            
+            analysisContent += `＊此分析結果由「電商神助手」生成。將您的特質應用在適合的場景中，將能創造最大的價值！`;
+            analysisEl.textContent = analysisContent;
+        }
+
+        // 重新測驗
+        function resetTest() {
+            currentQuestionIndex = 0;
+            answers = new Array(20).fill(null);
+            resultScreen.classList.add('hidden');
+            introScreen.classList.remove('hidden');
+            progressBar.style.width = '0%';
+        }
+    </script>
+</body>
+</html>
