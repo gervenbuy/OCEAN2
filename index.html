@@ -48,6 +48,20 @@
             background: #374151;
             border-radius: 3px;
         }
+
+        /* 載入動畫設計 */
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.05);
+            border-left-color: #73937E;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -108,6 +122,13 @@
                     看報告
                 </button>
             </div>
+        </div>
+
+        <!-- 2.5 解析中畫面 (Loading Screen) -->
+        <div id="loading-screen" class="hidden flex flex-col items-center justify-center h-[500px] p-8 text-center">
+            <div class="loader mb-6 mx-auto"></div>
+            <h2 class="text-2xl font-bold mb-3 tracking-wider text-white animate-pulse">深度解析中...</h2>
+            <p class="text-gray-400 text-sm tracking-widest">電商神助手正在生成您的專屬報告</p>
         </div>
 
         <!-- 3. 結果頁面 (Result Screen) -->
@@ -175,18 +196,6 @@
         let answers = new Array(20).fill(null);
         let radarChartInstance = null;
 
-        // DOM 元素參考
-        const introScreen = document.getElementById('intro-screen');
-        const quizScreen = document.getElementById('quiz-screen');
-        const resultScreen = document.getElementById('result-screen');
-        const questionText = document.getElementById('question-text');
-        const questionCounter = document.getElementById('question-counter');
-        const progressBar = document.getElementById('progress');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const submitBtn = document.getElementById('submit-btn');
-        const optionBtns = document.querySelectorAll('.option-btn');
-
         // 維度名稱對照
         const traitNames = {
             "O": "經驗開放性 (O)",
@@ -196,14 +205,42 @@
             "N": "神經質 (N)"
         };
 
-        // 維度解析庫
+        // 維度深度解析庫 (擴充完整版)
         const analysisTexts = {
-            "O": { high: "您具備極高的好奇心與想像力，適合從事需要創新思考與打破常規的工作（如創意企劃、設計）。", low: "您偏好務實與熟悉的事物，做事腳踏實地，是團隊中穩定可靠的執行者。" },
-            "C": { high: "您展現出極強的自律與目標導向，做事井然有序，非常適合需要高度精準與管理的專案。", low: "您具有較高的彈性，不喜歡被死板的計畫綁住，在需要臨場反應的環境中表現更佳。" },
-            "E": { high: "您充滿社交活力，善於溝通與帶動氣氛，在業務拓展、公關或團隊領導上具有天然優勢。", low: "您偏好安靜的環境，擁有強大的獨立思考與專注力，適合需要深度鑽研的專業領域。" },
-            "A": { high: "您富有同理心且樂於助人，是團隊中不可或缺的潤滑劑，擅長建立深厚的客戶與人際關係。", low: "您行事果斷、理性客觀，在需要進行艱難決策或談判時，不會輕易被情感左右。" },
-            "N": { high: "您對環境與情緒的變化非常敏銳，能提早察覺潛在風險。建議適度放鬆，找到紓壓管道。", low: "您的情緒非常穩定，抗壓性極佳。在面對危機與高壓環境時，能冷靜地帶領團隊突破難關。" }
+            "O": { 
+                high: "【創新先鋒】\n您具備極高的好奇心與想像力，對新鮮事物充滿熱忱，是天生的破局者與創意引擎。在工作上，您非常適合從事需要創新思考、打破常規的角色（如行銷企劃、品牌設計、新市場開發）。您能敏銳捕捉未來趨勢，為團隊帶來意想不到的驚喜與突破！", 
+                low: "【穩健守護者】\n您偏好務實與熟悉的事物，做事腳踏實地且尊重傳統。相較於天馬行空的幻想，您更看重實際的執行力與穩定性。在團隊中，您是將抽象概念具體落地的可靠推手，非常適合流程優化、日常營運與需要高度一致性的專業工作。" 
+            },
+            "C": { 
+                high: "【完美策展人】\n您展現出極強的自律與目標導向，做事井然有序且注重細節。您擅長事先規劃並確實執行，是團隊中最值得信賴的靠山。非常適合需要高度精準、時間管理與品質把控的專案（如數據分析、營運管理、財務控管）。有您在，任務總能如期達標。", 
+                low: "【靈活應變者】\n您具有極高的彈性與適應力，不喜歡被死板的計畫或 SOP 綁住。在瞬息萬變或需要臨場反應的環境中，您往往能展現出驚人的爆發力。適合處理突發狀況、危機公關或是充滿未知挑戰的早期開發階段，能在混亂中理出屬於自己的節奏。" 
+            },
+            "E": { 
+                high: "【魅力聚光燈】\n您充滿社交活力，善於溝通與帶動氣氛，在人群中總能散發天然的感染力。您享受與人互動的過程，非常適合業務拓展、公關交涉、社群經營或直播主等需要高度人際連結的角色。您能迅速破冰，為品牌建立廣大的人脈網絡。", 
+                low: "【深度洞察者】\n您偏好安靜的環境，擁有強大的獨立思考與專注力。相較於廣泛的社交，您更珍惜深度的交流。您非常適合需要長時間專注、深度鑽研的專業領域（如策略規劃、系統開發、深度內容創作）。您那份沉穩冷靜的力量，是團隊決策的關鍵基石。" 
+            },
+            "A": { 
+                high: "【溫暖凝聚者】\n您富有同理心且樂於助人，是團隊中不可或缺的潤滑劑。您善於傾聽並察覺他人的需求，能輕易建立起深厚的信任關係。非常適合客戶服務、人資管理或 VIP 客戶關係維護。您能打造出和諧的氛圍，讓合作夥伴與客戶都感到如沐春風。", 
+                low: "【理性決策者】\n您行事果斷、理性客觀，在需要進行艱難決策或談判時，不會輕易被情感或人情世故左右。您重視效率與結果，敢於提出不同意見來推動進步。非常適合商業談判、資源分配與推動組織變革，是能在關鍵時刻做出冷靜判斷的掌舵手。" 
+            },
+            "N": { 
+                high: "【敏銳風控師】\n您對環境與情緒的變化非常敏銳，擁有極強的防微杜漸能力。這種特質讓您總能比別人更早察覺到潛在的風險與細節上的紕漏，非常適合作為團隊的風險控管與品質保證者。但也建議您適度放寬心，建立專屬的紓壓管道，讓敏銳成為您的武器而非負擔。", 
+                low: "【磐石定海針】\n您的情緒非常穩定，抗壓性極佳，猶如狂風暴雨中的磐石。在面對危機與高壓環境時，您總能處變不驚，冷靜地分析局勢並帶領團隊突破難關。這份強大的心理素質，讓您非常適合擔任高階管理者或處理重大危機事件，給予眾人滿滿的安全感。" 
+            }
         };
+
+        // DOM 元素參考
+        const introScreen = document.getElementById('intro-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const loadingScreen = document.getElementById('loading-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const questionText = document.getElementById('question-text');
+        const questionCounter = document.getElementById('question-counter');
+        const progressBar = document.getElementById('progress');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        const optionBtns = document.querySelectorAll('.option-btn');
 
         // 啟動測驗
         function startTest() {
@@ -257,6 +294,11 @@
                 setTimeout(() => {
                     nextQuestion();
                 }, 300);
+            } else {
+                // 如果是最後一題，延遲半秒後自動計算並顯示結果
+                setTimeout(() => {
+                    calculateResults();
+                }, 500);
             }
         }
 
@@ -274,7 +316,7 @@
             }
         }
 
-        // 計算結果
+        // 計算結果與過場動畫
         function calculateResults() {
             // 確保所有題目都已作答 (防呆)
             if (answers.includes(null)) {
@@ -282,24 +324,32 @@
                 return;
             }
 
-            // 初始化分數物件
-            const scores = { "O": 0, "C": 0, "E": 0, "A": 0, "N": 0 };
+            // 1. 隱藏測驗畫面，顯示載入動畫
+            quizScreen.classList.add('hidden');
+            loadingScreen.classList.remove('hidden');
 
-            // 計分邏輯
-            questions.forEach((q, index) => {
-                let score = answers[index];
-                if (q.reverse) {
-                    score = 6 - score; // 反向計分轉換 (5->1, 4->2, 3->3, 2->4, 1->5)
-                }
-                scores[q.trait] += score;
-            });
+            // 2. 模擬系統運算時間 (設定 2 秒鐘)
+            setTimeout(() => {
+                // 初始化分數物件
+                const scores = { "O": 0, "C": 0, "E": 0, "A": 0, "N": 0 };
 
-            showResults(scores);
+                // 計分邏輯
+                questions.forEach((q, index) => {
+                    let score = answers[index];
+                    if (q.reverse) {
+                        score = 6 - score; // 反向計分轉換 (5->1, 4->2, 3->3, 2->4, 1->5)
+                    }
+                    scores[q.trait] += score;
+                });
+
+                // 3. 隱藏載入動畫，顯示最終結果
+                loadingScreen.classList.add('hidden');
+                showResults(scores);
+            }, 2000);
         }
 
         // 顯示結果與渲染圖表
         function showResults(scores) {
-            quizScreen.classList.add('hidden');
             resultScreen.classList.remove('hidden');
 
             const labels = Object.values(traitNames);
@@ -400,11 +450,11 @@
 
             // 組合文案
             const analysisEl = document.getElementById('analysis-text');
-            let analysisContent = `【顯著特質】\n${analysisTexts[highestTrait].high}\n\n`;
+            let analysisContent = `${analysisTexts[highestTrait].high}\n\n`;
             
             // 避免最高分和最低分文案衝突，若最高最低為同一項(極端情況)，則略過第二段
             if (highestTrait !== lowestTrait) {
-                analysisContent += `【潛在特質】\n${analysisTexts[lowestTrait].low}\n\n`;
+                analysisContent += `${analysisTexts[lowestTrait].low}\n\n`;
             }
             
             analysisContent += `＊此分析結果由「電商神助手」生成。將您的特質應用在適合的場景中，將能創造最大的價值！`;
